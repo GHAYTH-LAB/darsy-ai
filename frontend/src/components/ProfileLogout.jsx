@@ -8,6 +8,12 @@ const STYLE = `
 .profile-logout-button:not(:disabled):active { transform: scale(0.97); }
 .profile-logout-button:focus-visible { outline: 2px solid #f3d9bc; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .profile-logout-card, .profile-logout-button { transition: none; } }
+@media (max-width: 639px) {
+  .profile-logout-card { top: 0.75rem !important; right: 0.75rem !important; gap: 0.45rem !important; padding: 0.4rem !important; }
+  .profile-logout-name { display: none; }
+  .profile-logout-avatar { width: 30px !important; height: 30px !important; }
+  .profile-logout-button { padding: 0.45rem 0.65rem !important; }
+}
 `;
 
 export default function ProfileLogout({ name = 'Student', loggingOut = false, onLogout }) {
@@ -15,7 +21,7 @@ export default function ProfileLogout({ name = 'Student', loggingOut = false, on
     <>
     <style>{STYLE}</style>
     <div
-      className={`profile-logout-card hidden sm:flex${loggingOut ? ' is-logging-out' : ''}`}
+      className={`profile-logout-card flex${loggingOut ? ' is-logging-out' : ''}`}
       style={{
         position: 'absolute',
         top: 'clamp(1.75rem, 3vh, 2.25rem)',
@@ -33,6 +39,7 @@ export default function ProfileLogout({ name = 'Student', loggingOut = false, on
       }}
     >
       <span
+        className="profile-logout-avatar"
         aria-hidden="true"
         style={{
           display: 'grid',
@@ -49,6 +56,7 @@ export default function ProfileLogout({ name = 'Student', loggingOut = false, on
         {name.charAt(0).toUpperCase()}
       </span>
       <span
+        className="profile-logout-name"
         style={{
           color: CREAM,
           fontSize: 14,

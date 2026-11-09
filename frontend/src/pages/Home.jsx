@@ -23,7 +23,14 @@ const BEAM_OFFSET = 0.06;
 function Home() {
   const [files, setFiles] = useState([]);
   const [readyFiles, setReadyFiles] = useState([]);
-  const [profileName, setProfileName] = useState('Student');
+  const [profileName] = useState(() => {
+    try {
+      const profile = JSON.parse(localStorage.getItem('darsy:profile') || 'null');
+      return [profile?.name, profile?.surname].filter(Boolean).join(' ').trim() || 'Student';
+    } catch {
+      return 'Student';
+    }
+  });
   const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
 
@@ -35,16 +42,6 @@ function Home() {
   const logoutTimerRef = useRef(null);
 
   useEffect(() => () => window.clearTimeout(logoutTimerRef.current), []);
-
-  useEffect(() => {
-    try {
-      const profile = JSON.parse(localStorage.getItem('darsy:profile') || 'null');
-      const name = [profile?.name, profile?.surname].filter(Boolean).join(' ').trim();
-      if (name) setProfileName(name);
-    } catch {
-      setProfileName('Student');
-    }
-  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('darsy:profile');
