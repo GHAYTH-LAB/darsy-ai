@@ -65,7 +65,10 @@ function Login() {
         <p className="ds-tag">AI-powered platform for learning</p>
         <TargetCursor></TargetCursor>
         <Card
-          onSubmit={(data) => console.log('Create account:', data)}
+          onSubmit={(data) => {
+            localStorage.setItem('darsy:profile', JSON.stringify({ name: data.name, surname: data.surname }));
+            console.log('Create account:', data);
+          }}
           onOAuth={(provider) => console.log('OAuth with', provider)}
           onSignIn={() => console.log('Go to sign in')}
         />

@@ -209,7 +209,7 @@ function DarsyThinking({ task, fileCount, stage, working }) {
   );
 }
 
-export default function DarsyShowcase({ fileCount = 0 }) {
+export default function DarsyShowcase({ fileCount = 0, stacked = false }) {
   const [index, setIndex] = useState(0);
   const [stage, setStage] = useState(0);
   const [working, setWorking] = useState(true);
@@ -236,14 +236,17 @@ export default function DarsyShowcase({ fileCount = 0 }) {
     <aside
       className="darsy-showcase"
       style={{
-        position: 'absolute',
-        top: '50%',
-        right: 'calc(100% + 1rem)',
-        transform: 'translateY(-50%)',
+        position: stacked ? 'relative' : 'absolute',
+        top: stacked ? 'auto' : '50%',
+        right: stacked ? 'auto' : 'calc(100% + 1rem)',
+        transform: stacked ? 'none' : 'translateY(-50%)',
         width: 300,
+        height: stacked ? '42%' : undefined,
+        flex: stacked ? '0 0 42%' : undefined,
+        minHeight: stacked ? 0 : undefined,
         flexDirection: 'column',
-        gap: 14,
-        padding: '20px 20px 18px',
+        gap: stacked ? 8 : 14,
+        padding: stacked ? 12 : '20px 20px 18px',
         boxSizing: 'border-box',
         borderRadius: 26,
         border: '1px solid rgba(217,149,91,0.28)',
@@ -258,7 +261,7 @@ export default function DarsyShowcase({ fileCount = 0 }) {
         key={current.task}
         className="darsy-art"
         style={{
-          height: 150,
+          height: stacked ? 88 : 150,
           padding: 10,
           boxSizing: 'border-box',
           borderRadius: 16,
@@ -273,9 +276,9 @@ export default function DarsyShowcase({ fileCount = 0 }) {
         style={{
           fontFamily: "Georgia, 'Times New Roman', serif",
           fontStyle: 'italic',
-          fontSize: 19,
+          fontSize: stacked ? 16 : 19,
           lineHeight: 1.35,
-          minHeight: 52
+          minHeight: stacked ? 42 : 52
         }}
       >
         {current.caption}

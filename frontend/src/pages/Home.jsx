@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import GhostFibers from '../components/Home_backround';
 import TargetCursor from '../components/cursor';
 import UploadCard from '../components/upload_card';
@@ -9,6 +10,8 @@ import SuggestionBox from '../components/suggestion_section';
 import LaserFlow from '../components/Laser';
 import GradualBlur from '../components/Blur_effect';
 import DarsyShowcase from '../components/Thinking';
+import StudyTimer from '../components/StudyTimer';
+import ProfileLogout from '../components/ProfileLogout';
 
 const GOLD = '#D9955B';
 const CREAM = '#F3D9BC';
@@ -20,12 +23,38 @@ const BEAM_OFFSET = 0.06;
 function Home() {
   const [files, setFiles] = useState([]);
   const [readyFiles, setReadyFiles] = useState([]);
+  const [profileName, setProfileName] = useState('Student');
+  const [loggingOut, setLoggingOut] = useState(false);
+  const navigate = useNavigate();
 
   const heroRef = useRef(null);
   const chatRef = useRef(null);
   const [beam, setBeam] = useState(0.63);
   const blurHostRef = useRef(null);
   const suggestRef = useRef(null);
+  const logoutTimerRef = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(logoutTimerRef.current), []);
+
+  useEffect(() => {
+    try {
+      const profile = JSON.parse(localStorage.getItem('darsy:profile') || 'null');
+      const name = [profile?.name, profile?.surname].filter(Boolean).join(' ').trim();
+      if (name) setProfileName(name);
+    } catch {
+      setProfileName('Student');
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('darsy:profile');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      navigate('/');
+      return;
+    }
+    setLoggingOut(true);
+    logoutTimerRef.current = window.setTimeout(() => navigate('/'), 320);
+  };
 
   useEffect(() => {
     const hero = heroRef.current;
@@ -104,6 +133,8 @@ function Home() {
 
       <div style={{ position: 'relative', zIndex: 1, color: CREAM }}>
         <section ref={heroRef} style={{ position: 'relative', height: '100vh', minHeight: 640 }}>
+          <ProfileLogout name={profileName} loggingOut={loggingOut} onLogout={handleLogout} />
+
           <div
             style={{
               position: 'absolute',
@@ -212,7 +243,23 @@ function Home() {
             }}
           >
             <div style={{ position: 'relative' }}>
-              <DarsyShowcase fileCount={readyFiles.length} />
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 'calc(100% + 1.2rem)',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 300,
+                  height: 'min(84vh, 760px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                }}
+                className="hidden min-[1400px]:flex"
+              >
+                <DarsyShowcase fileCount={readyFiles.length} stacked />
+                <StudyTimer compact />
+              </div>
               <div onClick={handleDone}>
                 <UploadCard onFiles={list => setFiles(prev => [...prev, ...list])} />
               </div>
@@ -221,6 +268,7 @@ function Home() {
             <div ref={chatRef} style={{ display: 'flex', borderRadius: CHAT_RADIUS }}>
               <ChatWindow files={readyFiles} agentName="Course Assistant" />
             </div>
+
           </div>
         </section>
 
@@ -265,6 +313,19 @@ function Home() {
           zIndex={1}
         />
       </div>
+
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10000,
+          pointerEvents: loggingOut ? 'auto' : 'none',
+          background: '#0a0604',
+          opacity: loggingOut ? 1 : 0,
+          transition: 'opacity 320ms ease',
+        }}
+      />
 
       <HelpCenter />
     </>
