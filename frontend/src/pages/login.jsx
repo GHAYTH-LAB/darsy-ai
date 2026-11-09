@@ -1,7 +1,9 @@
 import AeroShards from '../components/AeroShards';
 import Shuffle from '../components/Darsy.JSX';
 import Card from '../components/card';
+import SignIn from '../components/SignIn';
 import TargetCursor from '../components/cursor';
+import { useState } from 'react';
 const css = `
   .ds-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:10;overflow-y:auto;display:flex;flex-direction:column;align-items:center;
     padding:clamp(2.5rem,11vh,7rem) 1.25rem 2rem;box-sizing:border-box;width:100%;text-align:center}
@@ -12,6 +14,7 @@ const css = `
 `;
 
 function Login() {
+  const [showSignIn, setShowSignIn] = useState(false);
   return (
     <>
       <style>{css}</style>
@@ -64,14 +67,18 @@ function Login() {
 
         <p className="ds-tag">AI-powered platform for learning</p>
         <TargetCursor></TargetCursor>
-        <Card
-          onSubmit={(data) => {
-            localStorage.setItem('darsy:profile', JSON.stringify({ name: data.name, surname: data.surname }));
-            console.log('Create account:', data);
-          }}
-          onOAuth={(provider) => console.log('OAuth with', provider)}
-          onSignIn={() => console.log('Go to sign in')}
-        />
+        {showSignIn ? (
+          <SignIn onBack={() => setShowSignIn(false)} />
+        ) : (
+          <Card
+            onSubmit={(data) => {
+              localStorage.setItem('darsy:profile', JSON.stringify({ name: data.name, surname: data.surname }));
+              console.log('Create account:', data);
+            }}
+            onOAuth={(provider) => console.log('OAuth with', provider)}
+            onSignIn={() => setShowSignIn(true)}
+          />
+        )}
       </div>
     </>
   );

@@ -19,6 +19,12 @@ const TAGLINE = 'Drop it. Ask it. Learn it.';
 const SUBLINE = 'Upload your courses and chat with them.';
 const CHAT_RADIUS = 26;
 const BEAM_OFFSET = 0.06;
+const HOME_LAYOUT_STYLE = `
+.home-hero-row { left: 50%; width: max-content; justify-content: center; }
+@media (min-width: 1700px) {
+  .home-hero-row { left: calc(50% + 130px); width: min(1200px, calc(100vw - 6rem)); justify-content: space-between; }
+}
+`;
 
 function Home() {
   const [files, setFiles] = useState([]);
@@ -104,6 +110,7 @@ function Home() {
   return (
     <>
       <TargetCursor />
+      <style>{HOME_LAYOUT_STYLE}</style>
 
       <div
         style={{
@@ -227,10 +234,10 @@ function Home() {
           </div>
 
           <div
+            className="home-hero-row"
             style={{
               position: 'absolute',
               zIndex: 1,
-              left: '50%',
               top: '61%',
               transform: 'translate(-50%, -50%)',
               transformOrigin: 'center center',
@@ -252,7 +259,7 @@ function Home() {
                   flexDirection: 'column',
                   gap: '0.75rem',
                 }}
-                className="hidden min-[1400px]:flex"
+                className="hidden min-[1700px]:flex"
               >
                 <DarsyShowcase fileCount={readyFiles.length} stacked />
                 <StudyTimer compact />
@@ -263,7 +270,7 @@ function Home() {
             </div>
 
             <div ref={chatRef} style={{ display: 'flex', borderRadius: CHAT_RADIUS }}>
-              <ChatWindow files={readyFiles} agentName="Course Assistant" />
+              <ChatWindow files={readyFiles} agentName="Course Assistant" width="min(620px, 90vw)" />
             </div>
 
           </div>
