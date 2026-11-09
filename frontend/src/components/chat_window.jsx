@@ -43,9 +43,36 @@ const SparkIcon = () => (
   </svg>
 );
 
+const MicIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0" />
+    <path d="M12 18v3" />
+  </svg>
+);
+
+const Bars = () => (
+  <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 2.5, height: 16 }}>
+    {[0, 1, 2, 3].map(i => (
+      <span
+        key={i}
+        className="cw-bar"
+        style={{
+          width: 3,
+          height: 16,
+          borderRadius: 2,
+          background: 'currentColor',
+          transformOrigin: 'center',
+          animation: `cw-bar ${0.9 + (i % 2) * 0.25}s ${i * 0.12}s infinite ease-in-out`,
+        }}
+      />
+    ))}
+  </span>
+);
+
 const SUGGESTIONS = ['Summarize my files', 'List the key topics', 'Make me a study plan'];
 
-/* Placeholder agent. Replace by passing your own onAsk prop. */
 const defaultAsk = async ({ message, files }) => {
   await new Promise(r => setTimeout(r, 900));
   return files.length
@@ -56,6 +83,8 @@ const defaultAsk = async ({ message, files }) => {
 export default function ChatWindow({
   files = [],
   onAsk = defaultAsk,
+  onMicStart,
+  onMicStop,
   agentName = 'Course Assistant',
   width = 'min(520px, 90vw)',
   height = 'min(84vh, 760px)',
@@ -65,12 +94,11 @@ export default function ChatWindow({
   const seenRef = useRef(0);
   const uid = () => idRef.current++;
 
-  // starts empty: the agent says nothing until Done is pressed
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
 
-  // announce newly confirmed files (when Done is pressed)
   useEffect(() => {
     if (files.length > seenRef.current) {
       const fresh = files.slice(seenRef.current);
@@ -111,6 +139,28 @@ export default function ChatWindow({
     }
   };
 
+  const toggleMic = async () => {
+    if (loading) return;
+    if (!listening) {
+      setListening(true);
+      try {
+        await onMicStart?.();
+      } catch {
+        setListening(false);
+      }
+      return;
+    }
+    setListening(false);
+    try {
+      const transcript = await onMicStop?.();
+      if (typeof transcript === 'string' && transcript.trim()) {
+        setDraft(prev => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()));
+      }
+    } catch {
+      return;
+    }
+  };
+
   const onKeyDown = e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -119,18 +169,29 @@ export default function ChatWindow({
   };
 
   const canSend = draft.trim().length > 0 && !loading;
+  const statusColor = loading || listening ? GOLD : '#22c55e';
+  const statusText = loading ? 'Thinking…' : listening ? 'Listening…' : 'Online';
 
   return (
     <div style={{ ...PANEL, width, height, overflow: 'hidden' }}>
       <style>{`
         @keyframes cw-dot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
         @keyframes cw-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @keyframes cw-ring { 0% { transform: scale(1); opacity: .6; } 100% { transform: scale(1.7); opacity: 0; } }
+        @keyframes cw-bar { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+        @keyframes cw-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(217,149,91,0.5), 0 6px 18px -6px rgba(217,149,91,0.8); } 50% { box-shadow: 0 0 0 6px rgba(217,149,91,0), 0 6px 22px -4px rgba(217,149,91,1); } }
         .cw-scroll::-webkit-scrollbar { width: 6px; }
         .cw-scroll::-webkit-scrollbar-thumb { background: rgba(217,149,91,0.3); border-radius: 999px; }
         .cw-input::placeholder { color: rgba(243,217,188,0.45); }
+        .cw-mic { transition: transform .2s ease, background .25s ease, color .25s ease, border-color .25s ease, opacity .2s ease; }
+        .cw-mic:hover:not(:disabled) { transform: scale(1.08); border-color: ${CREAM}; }
+        .cw-mic:active:not(:disabled) { transform: scale(0.94); }
+        .cw-mic:focus-visible { outline: 2px solid ${CREAM}; outline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) {
+          .cw-ring, .cw-bar, .cw-mic-on { animation: none !important; }
+        }
       `}</style>
 
-      {/* header */}
       <div
         style={{
           display: 'flex',
@@ -167,11 +228,12 @@ export default function ChatWindow({
                 width: 7,
                 height: 7,
                 borderRadius: '50%',
-                background: loading ? GOLD : '#22c55e',
-                boxShadow: `0 0 8px ${loading ? GOLD : '#22c55e'}`,
+                background: statusColor,
+                boxShadow: `0 0 8px ${statusColor}`,
+                transition: 'background .25s ease, box-shadow .25s ease',
               }}
             />
-            {loading ? 'Thinking…' : 'Online'}
+            {statusText}
           </div>
         </div>
         <span
@@ -188,7 +250,6 @@ export default function ChatWindow({
         </span>
       </div>
 
-      {/* messages */}
       <div
         ref={scrollRef}
         className="cw-scroll"
@@ -266,7 +327,6 @@ export default function ChatWindow({
         )}
       </div>
 
-      {/* suggestions */}
       {files.length > 0 && messages.length <= 1 && !loading && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 1.3rem 0.8rem', flex: 'none' }}>
           {SUGGESTIONS.map(s => (
@@ -277,7 +337,6 @@ export default function ChatWindow({
         </div>
       )}
 
-      {/* composer */}
       <div style={{ padding: '0 1.1rem 1.1rem', flex: 'none' }}>
         <div
           style={{
@@ -287,7 +346,8 @@ export default function ChatWindow({
             padding: '0.45rem 0.45rem 0.45rem 1.1rem',
             borderRadius: 999,
             background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(217,149,91,0.35)',
+            border: `1px solid ${listening ? 'rgba(243,217,188,0.6)' : 'rgba(217,149,91,0.35)'}`,
+            transition: 'border-color .25s ease',
           }}
         >
           <input
@@ -295,7 +355,7 @@ export default function ChatWindow({
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={files.length ? 'Ask about your files…' : 'Press Done after adding files…'}
+            placeholder={listening ? 'Listening…' : files.length ? 'Ask about your files…' : 'Press Done after adding files…'}
             aria-label="Message"
             style={{
               flex: 1,
@@ -308,6 +368,51 @@ export default function ChatWindow({
               fontFamily: 'inherit',
             }}
           />
+
+          <div style={{ position: 'relative', width: 38, height: 38, flex: 'none' }}>
+            {listening &&
+              [0, 1].map(i => (
+                <span
+                  key={i}
+                  className="cw-ring"
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: '50%',
+                    border: `1.5px solid ${GOLD}`,
+                    pointerEvents: 'none',
+                    animation: `cw-ring 1.7s ${i * 0.85}s infinite ease-out`,
+                  }}
+                />
+              ))}
+            <button
+              type="button"
+              className={`cw-mic${listening ? ' cw-mic-on' : ''}`}
+              onClick={toggleMic}
+              disabled={loading}
+              aria-pressed={listening}
+              aria-label={listening ? 'Stop recording' : 'Start recording'}
+              style={{
+                position: 'relative',
+                width: 38,
+                height: 38,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                cursor: loading ? 'default' : 'pointer',
+                opacity: loading ? 0.35 : 1,
+                color: listening ? '#1a0f08' : CREAM,
+                background: listening ? gradient : 'rgba(217,149,91,0.12)',
+                border: listening ? '1px solid transparent' : '1px solid rgba(217,149,91,0.4)',
+                animation: listening ? 'cw-glow 1.7s infinite ease-in-out' : 'none',
+              }}
+            >
+              {listening ? <Bars /> : <MicIcon />}
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => send()}
