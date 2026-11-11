@@ -1,40 +1,56 @@
+
 import os
-from datetime import datetime, timedelta, timezone
-import jwt
+import httpx
+
 from dotenv import load_dotenv
-from pwdlib import PasswordHash
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 load_dotenv()
-password_hash = PasswordHash.recommended()
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY is missing from .env")
-def hash_password(plain_password: str) -> str:
-    return password_hash.hash(plain_password)
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return password_hash.verify(plain_password, hashed_password)
-def create_access_token(user_id: int) -> str:
-    expiration = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-    )
-    payload = {
-        "sub": str(user_id),
-        "exp": expiration
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
+
+security = HTTPBearer(auto_error=False)
+
+
+async def verify_supabase_token(token: str) -> dict:
+    if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:
+        raise RuntimeError("Supabase environment variables are missing")
+
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {token}"
     }
-    token = jwt.encode(
-        payload,
-        SECRET_KEY,
-        algorithm=ALGORITHM
-    )
-    return token
-def verify_access_token(token: str) -> dict:
+
     try:
-        payload = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM]
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{SUPABASE_URL.rstrip('/')}/auth/v1/user",
+                headers=headers
+            )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired Supabase token"
+            )
+
+        return response.json()
+
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not communicate with Supabase"
         )
-        return payload
-    except jwt.InvalidTokenError:
-        raise ValueError("Invalid or expired token")
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+    return await verify_supabase_token(credentials.credentials)
