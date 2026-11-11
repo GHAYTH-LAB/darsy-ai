@@ -1,5 +1,6 @@
 from fastapi import FastAPI,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 app=FastAPI(title="Darsy",description="An Ai Powered Platform That Helps students via an Ai Agent to Get their couses Done",version="1.0.0")
 app.add_middleware(
     CORSMiddleware
@@ -7,4 +8,10 @@ app.add_middleware(
     ,allow_credentials=True
     ,allow_methods=["*"]
     ,allow_headers=["+"]
+)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET"),
+    same_site="lax",
+    https_only=False
 )
