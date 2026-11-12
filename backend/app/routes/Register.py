@@ -1,24 +1,18 @@
-from fastapi import APIRouter,HTTPException,Depends,status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, status
 
-from app.schemas.auth import User_register,User_login,TokenResponse
-from app.models.user import User
-import uuid
-from security import hash_password,verify_password,create_access_token,verify_access_token
-from database import get_db
-router=APIRouter(prefix="/auth",tags=["Authorization"])
+from app.schemas.auth import User_register
+from app.security import supabase_auth_request
 
-@router.post("/register")
-async def register(user:User_register,db:Session=Depends(get_db)):
-    if db.query(User).filter(User.email==user.email).first():
-        raise HTTPException(status_code=409)
-    else:
-        new_user=User(
-            email=user.email
-            ,name=user.name
-            ,surname=user.surname
-            ,password_hashed=hash_password(user.password)
-        )
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+router = APIRouter(prefix="/auth", tags=["Authorization"])
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(user: User_register):
+    return await supabase_auth_request(
+        "signup",
+        {
+            "email": str(user.email),
+            "password": user.password,
+            "data": {"name": user.name, "surname": user.surname},
+        },
+    )

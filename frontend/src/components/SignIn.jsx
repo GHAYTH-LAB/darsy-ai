@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabase';
 
 const GOLD = '#D9955B';
 const CREAM = '#F3D9BC';
@@ -14,6 +16,9 @@ const STYLE = `
     box-shadow: 0 24px 70px -28px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,214,170,.07);
     backdrop-filter: blur(16px); animation: darsy-signin-enter 420ms cubic-bezier(.2,.8,.2,1) both; }
   .signin-field { position: relative; }
+  .signin-oauth { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; margin: 1.1rem 0; }
+  .signin-oauth button { padding: .7rem; border: 1px solid rgba(232,184,135,.28); border-radius: 12px; color: ${CREAM}; background: rgba(243,217,188,.06); font: inherit; cursor: pointer; }
+  .signin-oauth button:disabled { opacity: .6; cursor: wait; }
   .signin-input { width: 100%; box-sizing: border-box; padding: .9rem 1rem .9rem 2.85rem; border-radius: 14px;
     border: 1px solid rgba(232,184,135,.24); color: ${CREAM}; background: rgba(10,6,4,.72);
     color-scheme: dark; font: 500 15px/1.45 'Segoe UI', system-ui, sans-serif; letter-spacing: .01em;
@@ -38,29 +43,66 @@ const STYLE = `
     cursor: pointer; transition: transform 180ms ease, box-shadow 180ms ease; }
   .signin-submit:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -10px rgba(217,149,91,.7); }
   .signin-submit:active { transform: scale(.98); }
+  .signin-submit:disabled { opacity: .65; cursor: wait; transform: none; }
   .signin-back { border: 0; padding: .25rem 0; color: ${GOLD}; background: none; font: inherit; cursor: pointer; }
   .signin-back:hover { color: ${CREAM}; }
   @media (prefers-reduced-motion: reduce) { .signin-card, .signin-input, .signin-submit { animation: none; transition: none; } }
 `;
 
-export default function SignIn({ onBack }) {
+export default function SignIn({ onBack, onOAuth, oauthSubmitting = false, oauthError = "" }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [notice, setNotice] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-  const submit = event => {
+  const submit = async event => {
     event.preventDefault();
-    setNotice('Sign-in is not available yet because account authentication is not connected.');
+    setNotice('');
+    setIsSubmitting(true);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl.replace(/\/$/, '')}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const detail = result.detail || result.msg || result.message;
+        throw new Error(typeof detail === 'string' ? detail : 'Sign-in failed. Check your email and password.');
+      }
+
+      const metadata = result.user?.user_metadata || {};
+      localStorage.setItem('darsy:profile', JSON.stringify({
+        name: metadata.name || '',
+        surname: metadata.surname || '',
+      }));
+      if (result.access_token) localStorage.setItem('darsy:access_token', result.access_token);
+      if (result.refresh_token) localStorage.setItem('darsy:refresh_token', result.refresh_token);
+      if (supabase && result.access_token && result.refresh_token) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        });
+        if (sessionError) throw sessionError;
+      }
+      navigate('/Home');
+    } catch (error) {
+      setNotice(error.message || 'Could not connect to the server. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <>
       <style>{STYLE}</style>
       <form className="signin-card" onSubmit={submit}>
-        <button className="signin-back" type="button" onClick={onBack}>
-          ← Create an account
-        </button>
+        <button className="signin-back" type="button" onClick={onBack}>Back to create an account</button>
         <div style={{ marginTop: '1.4rem', color: GOLD, fontSize: 10, fontWeight: 600, letterSpacing: '.2em', textTransform: 'uppercase' }}>
           Your study space
         </div>
@@ -71,6 +113,11 @@ export default function SignIn({ onBack }) {
           Sign in to return to your courses and study tools.
         </p>
 
+        <div className="signin-oauth">
+          <button type="button" disabled={oauthSubmitting || isSubmitting} onClick={() => onOAuth?.('google')}>Google</button>
+          <button type="button" disabled={oauthSubmitting || isSubmitting} onClick={() => onOAuth?.('github')}>GitHub</button>
+        </div>
+        {(notice || oauthError) && <p role="alert" style={{ color: '#ffb4a8', fontSize: 13, lineHeight: 1.5 }}>{notice || oauthError}</p>}
         <label className="signin-label">Email</label>
         <div className="signin-field">
           <svg className="signin-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
@@ -113,9 +160,7 @@ export default function SignIn({ onBack }) {
             {showPassword ? 'Hide' : 'Show'}
           </button>
         </div>
-
-        {notice && <p role="status" style={{ color: '#e9b783', fontSize: 13, lineHeight: 1.5 }}>{notice}</p>}
-        <button className="signin-submit" type="submit">Continue to Darsy</button>
+        <button className="signin-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Signing in...' : 'Continue to Darsy'}</button>
       </form>
     </>
   );

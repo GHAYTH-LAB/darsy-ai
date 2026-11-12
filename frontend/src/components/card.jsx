@@ -70,7 +70,7 @@ const USER = 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 
 const MAIL = 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6';
 const LOCK = 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4';
 
-function Card({ onSubmit, onOAuth, onSignIn }) {
+function Card({ onSubmit, onOAuth, onSignIn, isSubmitting = false, submitError = "" }) {
   const [form, setForm] = useState({ name: '', surname: '', email: '', password: '' });
   const [show, setShow] = useState(false);
 
@@ -146,7 +146,8 @@ function Card({ onSubmit, onOAuth, onSignIn }) {
           </button>
         </div>
 
-        <button type="submit" className="ds-submit">Create account</button>
+        {submitError && <p role="alert" style={{ margin: ".65rem 0", color: "#ffb4a8", fontSize: ".88rem" }}>{submitError}</p>}
+        <button type="submit" className="ds-submit" disabled={isSubmitting}>{isSubmitting ? "Creating account..." : "Create account"}</button>
 
         <p className="ds-legal">By signing up, you agree to our Terms and Privacy Policy.</p>
         <p className="ds-foot">

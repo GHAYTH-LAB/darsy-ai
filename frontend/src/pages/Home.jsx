@@ -12,6 +12,7 @@ import GradualBlur from '../components/Blur_effect';
 import DarsyShowcase from '../components/Thinking';
 import StudyTimer from '../components/StudyTimer';
 import ProfileLogout from '../components/ProfileLogout';
+import { supabase } from '../supabase';
 
 const GOLD = '#D9955B';
 const CREAM = '#F3D9BC';
@@ -29,7 +30,7 @@ const HOME_LAYOUT_STYLE = `
 function Home() {
   const [files, setFiles] = useState([]);
   const [readyFiles, setReadyFiles] = useState([]);
-  const [profileName] = useState(() => {
+  const [profileName, setProfileName] = useState(() => {
     try {
       const profile = JSON.parse(localStorage.getItem('darsy:profile') || 'null');
       return [profile?.name, profile?.surname].filter(Boolean).join(' ').trim() || 'Student';
@@ -47,10 +48,33 @@ function Home() {
   const suggestRef = useRef(null);
   const logoutTimerRef = useRef(null);
 
+  useEffect(() => {
+    if (!supabase) return undefined;
+
+    const syncSession = session => {
+      if (!session) return;
+      localStorage.setItem('darsy:access_token', session.access_token);
+      if (session.refresh_token) localStorage.setItem('darsy:refresh_token', session.refresh_token);
+      const metadata = session.user?.user_metadata || {};
+      const name = metadata.name || metadata.full_name || metadata.first_name || '';
+      const surname = metadata.surname || metadata.last_name || '';
+      const profile = { name: name || session.user?.email || 'Student', surname };
+      localStorage.setItem('darsy:profile', JSON.stringify(profile));
+      setProfileName([profile.name, profile.surname].filter(Boolean).join(' '));
+    };
+
+    supabase.auth.getSession().then(({ data }) => syncSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => syncSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => () => window.clearTimeout(logoutTimerRef.current), []);
 
   const handleLogout = () => {
     localStorage.removeItem('darsy:profile');
+    localStorage.removeItem('darsy:access_token');
+    localStorage.removeItem('darsy:refresh_token');
+    if (supabase) void supabase.auth.signOut();
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       navigate('/');
       return;
