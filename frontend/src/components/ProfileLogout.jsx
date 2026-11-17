@@ -16,7 +16,7 @@ const STYLE = `
 }
 `;
 
-export default function ProfileLogout({ name = 'Student', loggingOut = false, onLogout }) {
+export default function ProfileLogout({ name = 'User', loggingOut = false, onLogout }) {
   return (
     <>
     <style>{STYLE}</style>

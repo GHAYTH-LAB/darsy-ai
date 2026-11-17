@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { getUserProfile } from '../authProfile';
 
 const GOLD = '#D9955B';
 const CREAM = '#F3D9BC';
@@ -76,11 +77,7 @@ export default function SignIn({ onBack, onOAuth, oauthSubmitting = false, oauth
         throw new Error(typeof detail === 'string' ? detail : 'Sign-in failed. Check your email and password.');
       }
 
-      const metadata = result.user?.user_metadata || {};
-      localStorage.setItem('darsy:profile', JSON.stringify({
-        name: metadata.name || '',
-        surname: metadata.surname || '',
-      }));
+      localStorage.setItem('darsy:profile', JSON.stringify(getUserProfile(result.user)));
       if (result.access_token) localStorage.setItem('darsy:access_token', result.access_token);
       if (result.refresh_token) localStorage.setItem('darsy:refresh_token', result.refresh_token);
       if (supabase && result.access_token && result.refresh_token) {

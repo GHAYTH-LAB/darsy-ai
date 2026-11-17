@@ -47,7 +47,7 @@ const ghostButton = {
 };
 
 export default function UploadCard({
-  accept = '.pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg',
+  accept = '.pdf,.docx,.pptx,.txt,.md,.csv,.html,.json,.xml',
   onFiles,
 }) {
   const inputRef = useRef(null);

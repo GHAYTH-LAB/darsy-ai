@@ -129,10 +129,10 @@ export default function ChatWindow({
     try {
       const reply = await onAsk({ message: q, files, history });
       setMessages(prev => [...prev, { id: uid(), role: 'assistant', text: String(reply ?? '') }]);
-    } catch {
+    } catch (error) {
       setMessages(prev => [
         ...prev,
-        { id: uid(), role: 'assistant', text: 'Sorry, something went wrong. Please try again.', error: true },
+        { id: uid(), role: 'assistant', text: error?.message || 'Sorry, something went wrong. Please try again.', error: true },
       ]);
     } finally {
       setLoading(false);

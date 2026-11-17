@@ -13,6 +13,8 @@ import DarsyShowcase from '../components/Thinking';
 import StudyTimer from '../components/StudyTimer';
 import ProfileLogout from '../components/ProfileLogout';
 import { supabase } from '../supabase';
+import { getUserProfile } from '../authProfile';
+import { askSessionAgent, discardSessionDocuments, listSessionDocuments, saveSessionFile } from '../chatApi';
 
 const GOLD = '#D9955B';
 const CREAM = '#F3D9BC';
@@ -28,14 +30,24 @@ const HOME_LAYOUT_STYLE = `
 `;
 
 function Home() {
-  const [files, setFiles] = useState([]);
   const [readyFiles, setReadyFiles] = useState([]);
+  const [authReady, setAuthReady] = useState(false);
+  const [sessionId] = useState(() => {
+    const key = 'darsy:chat-session';
+    let id = sessionStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      sessionStorage.setItem(key, id);
+    }
+    return id;
+  });
+  const [uploadError, setUploadError] = useState('');
   const [profileName, setProfileName] = useState(() => {
     try {
       const profile = JSON.parse(localStorage.getItem('darsy:profile') || 'null');
-      return [profile?.name, profile?.surname].filter(Boolean).join(' ').trim() || 'Student';
+      return [profile?.name, profile?.surname].filter(Boolean).join(' ').trim() || 'User';
     } catch {
-      return 'Student';
+      return 'User';
     }
   });
   const [loggingOut, setLoggingOut] = useState(false);
@@ -49,18 +61,22 @@ function Home() {
   const logoutTimerRef = useRef(null);
 
   useEffect(() => {
-    if (!supabase) return undefined;
+    if (!supabase) {
+      setAuthReady(true);
+      return undefined;
+    }
 
     const syncSession = session => {
-      if (!session) return;
+      if (!session) {
+        setAuthReady(true);
+        return;
+      }
       localStorage.setItem('darsy:access_token', session.access_token);
       if (session.refresh_token) localStorage.setItem('darsy:refresh_token', session.refresh_token);
-      const metadata = session.user?.user_metadata || {};
-      const name = metadata.name || metadata.full_name || metadata.first_name || '';
-      const surname = metadata.surname || metadata.last_name || '';
-      const profile = { name: name || session.user?.email || 'Student', surname };
+      const profile = getUserProfile(session.user);
       localStorage.setItem('darsy:profile', JSON.stringify(profile));
       setProfileName([profile.name, profile.surname].filter(Boolean).join(' '));
+      setAuthReady(true);
     };
 
     supabase.auth.getSession().then(({ data }) => syncSession(data.session));
@@ -70,16 +86,28 @@ function Home() {
 
   useEffect(() => () => window.clearTimeout(logoutTimerRef.current), []);
 
+  useEffect(() => {
+    if (!authReady) return undefined;
+    let active = true;
+    listSessionDocuments(sessionId)
+      .then(documents => { if (active) setReadyFiles(documents); })
+      .catch(error => { if (active && error.message !== 'Please sign in again before saving or asking about documents.') setUploadError(error.message); });
+    return () => { active = false; };
+  }, [authReady, sessionId]);
+
   const handleLogout = () => {
+    setUploadError('');
+    setLoggingOut(true);
+    void discardSessionDocuments(sessionId).catch(() => {});
     localStorage.removeItem('darsy:profile');
     localStorage.removeItem('darsy:access_token');
     localStorage.removeItem('darsy:refresh_token');
+    sessionStorage.removeItem('darsy:chat-session');
     if (supabase) void supabase.auth.signOut();
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       navigate('/');
       return;
     }
-    setLoggingOut(true);
     logoutTimerRef.current = window.setTimeout(() => navigate('/'), 320);
   };
 
@@ -126,10 +154,17 @@ function Home() {
     };
   }, []);
 
-  const handleDone = e => {
-    const btn = e.target.closest('button');
-    if (btn && btn.textContent.trim() === 'Done') setReadyFiles(files);
+  const handleFilesAdded = async selectedFiles => {
+    setUploadError('');
+    try {
+      await Promise.all(selectedFiles.map(file => saveSessionFile(sessionId, file)));
+      setReadyFiles(await listSessionDocuments(sessionId));
+    } catch (error) {
+      setUploadError(error.message);
+    }
   };
+
+  const handleAsk = ({ message, history }) => askSessionAgent(sessionId, message, history);
 
   return (
     <>
@@ -288,13 +323,14 @@ function Home() {
                 <DarsyShowcase fileCount={readyFiles.length} stacked />
                 <StudyTimer compact />
               </div>
-              <div onClick={handleDone}>
-                <UploadCard onFiles={list => setFiles(prev => [...prev, ...list])} />
+              <div>
+                <UploadCard onFiles={handleFilesAdded} />
+                {uploadError && <div role="alert" style={{ width: 'min(520px, 90vw)', color: '#ffd0c7', fontSize: 13, marginTop: 8 }}>{uploadError}</div>}
               </div>
             </div>
 
             <div ref={chatRef} style={{ display: 'flex', borderRadius: CHAT_RADIUS }}>
-              <ChatWindow files={readyFiles} agentName="Course Assistant" width="min(620px, 90vw)" />
+              <ChatWindow files={readyFiles} onAsk={handleAsk} agentName="Course Assistant" width="min(620px, 90vw)" />
             </div>
 
           </div>
