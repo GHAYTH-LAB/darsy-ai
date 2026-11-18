@@ -12,7 +12,7 @@ import GradualBlur from '../components/Blur_effect';
 import DarsyShowcase from '../components/Thinking';
 import StudyTimer from '../components/StudyTimer';
 import ProfileLogout from '../components/ProfileLogout';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import { getUserProfile } from '../authProfile';
 import { askSessionAgent, discardSessionDocuments, listSessionDocuments, saveSessionFile } from '../chatApi';
 

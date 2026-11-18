@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase';
 import { getUserProfile } from '../authProfile';
+import { signIn } from '../services/Auth';
 
 const GOLD = '#D9955B';
 const CREAM = '#F3D9BC';
@@ -64,32 +64,11 @@ export default function SignIn({ onBack, onOAuth, oauthSubmitting = false, oauth
     setIsSubmitting(true);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-      const response = await fetch(`${apiUrl.replace(/\/$/, '')}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        const detail = result.detail || result.msg || result.message;
-        throw new Error(typeof detail === 'string' ? detail : 'Sign-in failed. Check your email and password.');
-      }
-
-      localStorage.setItem('darsy:profile', JSON.stringify(getUserProfile(result.user)));
-      if (result.access_token) localStorage.setItem('darsy:access_token', result.access_token);
-      if (result.refresh_token) localStorage.setItem('darsy:refresh_token', result.refresh_token);
-      if (supabase && result.access_token && result.refresh_token) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-        });
-        if (sessionError) throw sessionError;
-      }
+      const { user } = await signIn(email, password);
+      localStorage.setItem('darsy:profile', JSON.stringify(getUserProfile(user)));
       navigate('/Home');
     } catch (error) {
-      setNotice(error.message || 'Could not connect to the server. Please try again.');
+      setNotice(error.message || 'Sign-in failed. Check your email and password.');
     } finally {
       setIsSubmitting(false);
     }

@@ -5,7 +5,9 @@ import SignIn from '../components/SignIn';
 import TargetCursor from '../components/cursor';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
+import { signUp } from '../services/Auth';
+import { getUserProfile } from '../authProfile';
 const css = `
   .ds-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:10;overflow-y:auto;display:flex;flex-direction:column;align-items:center;
     padding:clamp(2.5rem,11vh,7rem) 1.25rem 2rem;box-sizing:border-box;width:100%;text-align:center}
@@ -19,6 +21,7 @@ function Login() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [signupError, setSignupError] = useState('');
+  const [signupNotice, setSignupNotice] = useState('');
   const navigate = useNavigate();
 
   const handleOAuth = async (provider) => {
@@ -43,33 +46,15 @@ function Login() {
   const createAccount = async (data) => {
     setIsSubmitting(true);
     setSignupError('');
+    setSignupNotice('');
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-      const response = await fetch(`${apiUrl.replace(/\/$/, '')}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(result.detail || result.msg || result.message || 'Could not create your account. Please try again.');
-      }
-
-      localStorage.setItem('darsy:profile', JSON.stringify({ name: data.name, surname: data.surname }));
-      if (result.access_token) localStorage.setItem('darsy:access_token', result.access_token);
-      if (result.refresh_token) localStorage.setItem('darsy:refresh_token', result.refresh_token);
-      if (supabase && result.access_token && result.refresh_token) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-        });
-        if (sessionError) throw sessionError;
-      }
-      navigate('/Home');
+      const { user, session } = await signUp(data.email, data.password, data.name, data.surname);
+      localStorage.setItem('darsy:profile', JSON.stringify(getUserProfile(user)));
+      if (session) navigate('/Home');
+      else setSignupNotice('Account created. Check your email to confirm it, then sign in.');
     } catch (error) {
-      setSignupError(error.message || 'Could not connect to the server. Please try again.');
+      setSignupError(error.message || 'Could not create your account. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -133,6 +118,7 @@ function Login() {
             onSubmit={createAccount}
             isSubmitting={isSubmitting}
             submitError={signupError}
+            submitNotice={signupNotice}
             onOAuth={handleOAuth}
             onSignIn={() => setShowSignIn(true)}
           />
