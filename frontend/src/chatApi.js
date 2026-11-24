@@ -50,3 +50,20 @@ export async function askSessionAgent(sessionId, message, history = []) {
   });
   return result?.answer ?? result?.response ?? result?.message ?? result;
 }
+
+export async function sendSuggestion(suggestion) {
+  return request('/suggestions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(suggestion),
+  });
+}
+
+export async function askHelpCenter(message, history = []) {
+  const result = await request('/help', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, history }),
+  });
+  return result?.answer ?? result;
+}

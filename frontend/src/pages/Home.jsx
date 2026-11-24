@@ -14,7 +14,7 @@ import StudyTimer from '../components/StudyTimer';
 import ProfileLogout from '../components/ProfileLogout';
 import { supabase } from '../lib/supabase';
 import { getUserProfile } from '../authProfile';
-import { askSessionAgent, discardSessionDocuments, listSessionDocuments, saveSessionFile } from '../chatApi';
+import { askHelpCenter, askSessionAgent, discardSessionDocuments, listSessionDocuments, saveSessionFile, sendSuggestion } from '../chatApi';
 
 const GOLD = '#D9955B';
 const CREAM = '#F3D9BC';
@@ -347,7 +347,7 @@ function Home() {
             boxSizing: 'border-box',
           }}
         >
-          <SuggestionBox />
+          <SuggestionBox onSubmit={sendSuggestion} />
         </section>
       </div>
 
@@ -391,7 +391,7 @@ function Home() {
         }}
       />
 
-      <HelpCenter />
+      <HelpCenter onAsk={({ message, history }) => askHelpCenter(message, history)} />
     </>
   );
 }
