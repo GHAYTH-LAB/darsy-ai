@@ -1,5 +1,15 @@
 fastapi
 uvicorn[standard]
-sqlalchemy
+sqlalchemy>=2.0
+psycopg[binary]>=3.1
 pydantic-settings
+email-validator
 python-multipart
+supabase
+pypdf
+python-docx
+python-pptx
+
+# tests
+pytest
+httpx

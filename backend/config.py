@@ -1,6 +1,5 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -9,24 +8,25 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "My API"
+    APP_NAME: str = "Darsy API"
     DEBUG: bool = False
-    FRONTEND_URL: str = "http://localhost:5173"
 
+    # Comma-separated list of origins allowed to call the API.
+    FRONTEND_URLS: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    # Postgres connection string (Supabase: Project Settings > Database > Connection string).
     DATABASE_URL: str
 
-    SECRET_KEY: str
-    ALGORITHM: Literal["HS256"] = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # Supabase project used to verify the access tokens sent by the frontend.
+    SUPABASE_URL: str
+    SUPABASE_ANON_KEY: str
 
-    GOOGLE_CLIENT_ID: str = ""
-    GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    # Uploaded course files.
+    UPLOAD_DIR: Path = BASE_DIR / "uploads"
+    MAX_UPLOAD_MB: int = 20
+    MAX_DOCUMENTS_PER_SESSION: int = 20
 
-    GITHUB_CLIENT_ID: str = ""
-    GITHUB_CLIENT_SECRET: str = ""
-    GITHUB_REDIRECT_URI: str = "http://localhost:8000/auth/github/callback"
-
+    # Reserved for the AI agent (not used by the backend itself).
     LLM_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
@@ -35,12 +35,22 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    @field_validator("SECRET_KEY")
+    @field_validator("DATABASE_URL")
     @classmethod
-    def secret_key_must_be_strong(cls, value: str) -> str:
-        if len(value) < 32:
-            raise ValueError("SECRET_KEY must be at least 32 characters long")
+    def use_psycopg3_driver(cls, value: str) -> str:
+        # Supabase hands out "postgresql://" / "postgres://" URLs; the installed driver is psycopg 3.
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value[len(prefix):]
         return value
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip().rstrip("/") for origin in self.FRONTEND_URLS.split(",") if origin.strip()]
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.MAX_UPLOAD_MB * 1024 * 1024
 
 
 @lru_cache

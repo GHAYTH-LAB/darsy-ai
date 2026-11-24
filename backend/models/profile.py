@@ -1,14 +1,18 @@
-from sqlalchemy import Column, DateTime, Text, text
-from sqlalchemy.dialects.postgresql import UUID
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, Text, Uuid, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
 
 
 class Profile(Base):
-    __tablename__ = "profiles"
-    __table_args__ = {"schema": "public"}
+    """Mirrors the existing Supabase table public.profiles (id references auth.users.id)."""
 
-    id = Column(UUID(as_uuid=True), primary_key=True)
-    name = Column(Text)
-    surname = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=text("now()"))
+    __tablename__ = "profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    name: Mapped[str | None] = mapped_column(Text)
+    surname: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
